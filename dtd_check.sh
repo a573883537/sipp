@@ -1,7 +1,7 @@
 #!/bin/sh
 
 failures=0
-for file in $(find . -name '*.xml'); do
+for file in $(find . -name '*.xml' -not -path '*/node_modules/*'); do
     if ! xmllint --path . --dtdvalid ./sipp.dtd $file >/dev/null; then
         echo "ERROR: $file failed validation"
         failures=$((failures+1))

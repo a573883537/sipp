@@ -56,8 +56,14 @@
                     <button class="action-btn" id="btn-new">
                         <span>🆕</span> New Scenario
                     </button>
+                    <button class="action-btn" id="btn-import">
+                        <span>📂</span> Import XML
+                    </button>
                     <button class="action-btn" id="btn-download">
                         <span>💾</span> Download XML
+                    </button>
+                    <button class="action-btn" id="btn-copy">
+                        <span>📋</span> Copy XML
                     </button>
                     <button class="action-btn" id="btn-validate">
                         <span>✅</span> Validate
@@ -65,6 +71,7 @@
                     <button class="action-btn" id="btn-help">
                         <span>❓</span> Help
                     </button>
+                    <input type="file" id="file-input" accept=".xml" style="display: none;">
                 </div>
 
                 <div class="section">
@@ -153,6 +160,7 @@
     </div>
 
     <script src="templates.js"></script>
+    <script src="scenarioManager.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

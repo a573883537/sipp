@@ -2,6 +2,83 @@
 
 All notable changes to the SIPp Web Scenario Designer will be documented in this file.
 
+## [1.1.0] - 2025-01-24
+
+### Added
+
+#### XML Import/Export System
+- **XML Import Functionality**: Upload and parse existing SIPp XML scenarios
+  - New "Import XML" button in the Actions panel
+  - File upload dialog for selecting XML files
+  - Automatic parsing and visualization of imported scenarios
+  - Error handling for malformed XML
+  
+- **XML Serialization Engine**: Convert internal scenario representation to sipp.dtd-compliant XML
+  - Support for all SIPp elements (send, recv, pause, nop, label, timewait, sendCmd, recvCmd)
+  - Proper CDATA handling for SIP message content
+  - Action element serialization (ereg, log, exec, assign, test, and 20+ more)
+  - Attribute preservation and XML escaping
+  - ResponseTimeRepartition and CallLengthRepartition support
+  
+- **XML Parser**: Parse sipp.dtd-compliant XML back into internal representation
+  - DOM-based parsing for browser and Node.js compatibility
+  - Order-preserving step parsing
+  - CDATA content extraction
+  - Comprehensive action parsing
+  - Full attribute support
+
+- **Copy to Clipboard**: New "Copy XML" button for quick sharing
+  - Fallback support for older browsers
+  - Success notifications
+
+#### Testing Infrastructure
+- **Comprehensive Test Suite**: 55+ unit tests using Vitest
+  - XML serialization tests (`xmlSerializer.test.js`)
+  - XML parsing tests (`xmlParser.test.js`)
+  - Round-trip conversion tests (`roundtrip.test.js`)
+  - Real SIPp scenario tests (`sipp-scenarios.test.js`)
+  - 100% test pass rate
+
+- **DTD Validation Integration**: Server-side validation with xmllint
+  - `dtdValidator.js` module for Node.js environments
+  - Integration with existing `dtd_check.sh`
+  - Detailed error reporting
+
+#### Visual Enhancements
+- **Visual Rendering for Imported Scenarios**: 
+  - Automatic generation of visual flow diagrams for imported XML
+  - Step-by-step representation with icons and details
+  - Support for all scenario element types
+
+### Enhanced
+- **Validation**: Improved XML validation with better error messages
+- **Documentation**: 
+  - New `XML_IMPORT_EXPORT.md` comprehensive guide
+  - Updated README with import/export features
+  - Enhanced inline code documentation
+
+### Technical Changes
+- Added dependencies: `fast-xml-parser`, `vitest`, `jsdom`, `@xmldom/xmldom`
+- New modules: `xmlSerializer.js`, `xmlParser.js`, `scenarioManager.js`, `dtdValidator.js`
+- Updated `package.json` with test scripts and module type
+- Created `vitest.config.js` for test configuration
+
+### Files Added
+- `scenarioManager.js` - Browser-compatible XML import/export
+- `xmlSerializer.js` - Node.js XML serialization module
+- `xmlParser.js` - Node.js XML parsing module
+- `dtdValidator.js` - DTD validation with xmllint
+- `xmlSerializer.test.js` - Serialization unit tests
+- `xmlParser.test.js` - Parser unit tests
+- `roundtrip.test.js` - Round-trip conversion tests
+- `sipp-scenarios.test.js` - Real scenario tests
+- `vitest.config.js` - Vitest configuration
+- `XML_IMPORT_EXPORT.md` - Comprehensive documentation
+
+### Browser Compatibility
+- Maintained compatibility with Chrome/Edge 90+, Firefox 88+, Safari 14+, Opera 76+
+- All new features work in modern browsers without build step
+
 ## [1.0.0] - 2024-10-24
 
 ### Added

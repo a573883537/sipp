@@ -18,3 +18,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Package lock files (optional - project uses npm)
+# package-lock.json

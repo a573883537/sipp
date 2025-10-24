@@ -8,8 +8,11 @@ A lightweight, browser-based visual editor for creating and editing SIPp XML sce
 
 - 📋 **Pre-built Templates**: UAC, UAS, 3PCC, RTP playback, and SRTP scenarios
 - 🎨 **Dual View Modes**: Visual flow diagram and XML editor
+- 📂 **XML Import**: Upload and parse existing SIPp scenarios
+- 💾 **XML Export**: Download scenarios or copy to clipboard
 - ✅ **XML Validation**: Built-in validation to ensure well-formed scenarios
-- 💾 **Export**: Download scenarios as XML files ready for SIPp
+- 🔄 **Round-trip Fidelity**: Import/export preserves all scenario details
+- 🧪 **Comprehensive Tests**: Unit tests ensure XML compatibility
 - 🚀 **No Installation**: Pure HTML/CSS/JS - works in any modern browser
 - 📖 **Integrated Help**: SIPp CLI usage examples and configuration tips
 
@@ -19,8 +22,11 @@ A lightweight, browser-based visual editor for creating and editing SIPp XML sce
 
 1. **Open in Browser**: Simply open `index.html` in any modern web browser
 2. **Select a Template**: Click on one of the scenario templates (UAC, UAS, etc.)
+   - Or import an existing XML scenario using "Import XML"
 3. **Edit if Needed**: Switch between Visual and XML views to customize
-4. **Download**: Click "Download XML" to save your scenario
+4. **Export**: 
+   - Click "Download XML" to save your scenario as a file
+   - Click "Copy XML" to copy to clipboard
 5. **Run with SIPp**: Use the generated CLI command shown in the sidebar
 
 ### Example Workflow
@@ -324,8 +330,48 @@ Pure client-side application:
 - **style.css**: Responsive styling
 - **templates.js**: Scenario templates library
 - **app.js**: Application logic and interactions
+- **scenarioManager.js**: XML serialization and parsing (browser-compatible)
+- **xmlSerializer.js**: XML generator (Node.js module for testing)
+- **xmlParser.js**: XML parser (Node.js module for testing)
+- **dtdValidator.js**: DTD validation with xmllint
 
 No backend required. All processing happens in the browser.
+
+## XML Import/Export
+
+The designer now includes full support for importing and exporting SIPp XML scenarios:
+
+### Features
+
+- **Import existing scenarios**: Upload any sipp.dtd-compliant XML file
+- **Copy to clipboard**: Quickly share scenarios
+- **Round-trip fidelity**: Import → Edit → Export preserves all details
+- **Comprehensive testing**: 55+ unit tests ensure compatibility
+
+### Supported Elements
+
+All standard SIPp elements are supported:
+- Message commands: send, recv, pause, nop, label, timewait
+- Actions: ereg, log, exec, assign, test, and 20+ more
+- Scenario metadata: ResponseTimeRepartition, CallLengthRepartition
+- All attributes and CDATA content
+
+See [XML_IMPORT_EXPORT.md](./XML_IMPORT_EXPORT.md) for complete documentation.
+
+### Testing
+
+Run the test suite to verify XML compatibility:
+
+```bash
+npm install  # Install dependencies
+npm test     # Run all tests
+```
+
+Tests include:
+- XML serialization tests
+- XML parsing tests
+- Round-trip conversion tests
+- Real SIPp scenario tests
 
 ## Contributing
 
