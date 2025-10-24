@@ -105,6 +105,149 @@ function downloadXML() {
     URL.revokeObjectURL(url);
 }
 
+function copyXML() {
+    const xmlContent = document.getElementById('xml-content').value;
+    
+    navigator.clipboard.writeText(xmlContent).then(() => {
+        alert('✅ XML copied to clipboard!');
+    }).catch(err => {
+        const textarea = document.createElement('textarea');
+        textarea.value = xmlContent;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        alert('✅ XML copied to clipboard!');
+    });
+}
+
+function importXML() {
+    const fileInput = document.getElementById('file-input');
+    fileInput.click();
+}
+
+function handleFileImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const xmlContent = e.target.result;
+            
+            const validationResult = validateXMLBasic(xmlContent);
+            if (!validationResult.valid) {
+                alert('❌ XML Import Failed\n\n' + validationResult.errors.map(err => err.message).join('\n'));
+                return;
+            }
+
+            const scenario = parseScenarioFromXML(xmlContent);
+            
+            document.getElementById('scenario-name').value = scenario.name;
+            document.getElementById('xml-content').value = xmlContent;
+            
+            currentTemplate = null;
+            renderImportedScenario(scenario);
+            
+            alert('✅ Scenario imported successfully!\n\nScenario: ' + scenario.name);
+        } catch (error) {
+            alert('❌ Import Error\n\n' + error.message);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function renderImportedScenario(scenario) {
+    const visualCanvas = document.getElementById('visual-canvas');
+    
+    let html = `
+        <div class="scenario-flow">
+            <h2>${escapeHtml(scenario.name)}</h2>
+            <p style="color: var(--text-light); margin-bottom: 2rem;">Imported scenario with ${scenario.steps.length} steps</p>
+    `;
+    
+    scenario.steps.forEach((step, index) => {
+        const stepInfo = getStepInfo(step);
+        html += `
+            <div class="flow-step ${stepInfo.class}">
+                <div class="step-icon">${stepInfo.icon}</div>
+                <div class="step-content">
+                    <div class="step-title">${escapeHtml(stepInfo.title)}</div>
+                    <div class="step-details">${escapeHtml(stepInfo.details)}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    visualCanvas.innerHTML = html;
+}
+
+function getStepInfo(step) {
+    switch (step.type) {
+        case 'send':
+            const sendMethod = (step.content || '').split(' ')[0] || 'MESSAGE';
+            return {
+                icon: '📤',
+                title: `Send ${sendMethod}`,
+                details: step.attributes.retrans ? 'With retransmissions' : '',
+                class: 'send'
+            };
+        case 'recv':
+            if (step.attributes.response) {
+                return {
+                    icon: '📥',
+                    title: `Receive ${step.attributes.response}`,
+                    details: step.attributes.optional === 'true' ? 'Optional' : '',
+                    class: 'recv'
+                };
+            } else if (step.attributes.request) {
+                return {
+                    icon: '📥',
+                    title: `Receive ${step.attributes.request}`,
+                    details: step.attributes.optional === 'true' ? 'Optional' : '',
+                    class: 'recv'
+                };
+            }
+            return {
+                icon: '📥',
+                title: 'Receive message',
+                details: step.attributes.optional === 'true' ? 'Optional' : '',
+                class: 'recv'
+            };
+        case 'pause':
+            const ms = step.attributes.milliseconds || 'default';
+            return {
+                icon: '⏸️',
+                title: 'Pause',
+                details: `${ms}ms`,
+                class: 'pause'
+            };
+        case 'label':
+            return {
+                icon: '🏷️',
+                title: 'Label',
+                details: step.attributes.id || '',
+                class: 'control'
+            };
+        case 'nop':
+            return {
+                icon: '⚙️',
+                title: 'No operation',
+                details: step.attributes.display || '',
+                class: 'control'
+            };
+        default:
+            return {
+                icon: '❓',
+                title: step.type,
+                details: '',
+                class: 'other'
+            };
+    }
+}
+
 function validateXML() {
     const xmlContent = document.getElementById('xml-content').value;
     const parser = new DOMParser();
@@ -158,8 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btn-new').addEventListener('click', newScenario);
+    document.getElementById('btn-import').addEventListener('click', importXML);
     document.getElementById('btn-download').addEventListener('click', downloadXML);
+    document.getElementById('btn-copy').addEventListener('click', copyXML);
     document.getElementById('btn-validate').addEventListener('click', validateXML);
+    document.getElementById('file-input').addEventListener('change', handleFileImport);
     
     const modal = document.getElementById('help-modal');
     const btnHelp = document.getElementById('btn-help');
