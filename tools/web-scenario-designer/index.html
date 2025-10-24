@@ -105,6 +105,265 @@
                 </div>
 
                 <div id="visual-editor" class="editor-panel active">
+                    <div class="visual-config">
+                        <div class="config-panels">
+                            <section class="config-panel" id="call-config-panel">
+                                <header class="panel-header">
+                                    <h2>Call pacing</h2>
+                                    <p class="panel-subtitle">Control rate, concurrency and user models using SIPp CLI options.</p>
+                                </header>
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        <label for="call-mode">Traffic model <span class="cli-badge">-r / -users</span></label>
+                                        <select id="call-mode" data-section="call" data-field="mode">
+                                            <option value="rate">Rate based</option>
+                                            <option value="users">Concurrent users</option>
+                                        </select>
+                                        <p class="field-description" data-metadata="callMode"></p>
+                                        <div class="field-error" id="call-mode-error"></div>
+                                    </div>
+                                    <div class="form-field call-rate-field" id="call-rate-field">
+                                        <label for="call-rate">Call rate (calls/sec) <span class="cli-badge">-r</span></label>
+                                        <input type="number" id="call-rate" min="0" step="0.1" data-section="call" data-field="callRate" />
+                                        <p class="field-description" data-metadata="callRate"></p>
+                                        <div class="field-error" id="call-rate-error"></div>
+                                    </div>
+                                    <div class="form-field call-rate-field" id="call-rate-period-field">
+                                        <label for="call-rate-period">Rate period (ms) <span class="cli-badge">-rp</span></label>
+                                        <input type="number" id="call-rate-period" min="1" step="50" data-section="call" data-field="ratePeriod" />
+                                        <p class="field-description" data-metadata="ratePeriod"></p>
+                                        <div class="field-error" id="call-rate-period-error"></div>
+                                    </div>
+                                    <div class="form-field call-users-field" id="call-user-count-field">
+                                        <label for="call-user-count">Concurrent users <span class="cli-badge">-users</span></label>
+                                        <input type="number" id="call-user-count" min="1" step="1" data-section="call" data-field="userCount" />
+                                        <p class="field-description" data-metadata="userCount"></p>
+                                        <div class="field-error" id="call-user-count-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="call-max-concurrent">Max simultaneous calls <span class="cli-badge">-l</span></label>
+                                        <input type="number" id="call-max-concurrent" min="0" step="1" data-section="call" data-field="maxConcurrent" />
+                                        <p class="field-description" data-metadata="maxConcurrent"></p>
+                                        <div class="field-error" id="call-max-concurrent-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="call-max-calls">Total calls to place <span class="cli-badge">-m</span></label>
+                                        <input type="number" id="call-max-calls" min="0" step="1" data-section="call" data-field="maxCalls" />
+                                        <p class="field-description" data-metadata="maxCalls"></p>
+                                        <div class="field-error" id="call-max-calls-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="call-duration">Call duration / pause (ms) <span class="cli-badge">-d</span></label>
+                                        <input type="number" id="call-duration" min="0" step="100" data-section="call" data-field="callDuration" />
+                                        <p class="field-description" data-metadata="callDuration"></p>
+                                        <div class="field-error" id="call-duration-error"></div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="config-panel" id="network-config-panel">
+                                <header class="panel-header">
+                                    <h2>Network &amp; transport</h2>
+                                    <p class="panel-subtitle">Bind SIP sockets, choose transport and prepare TLS parameters.</p>
+                                </header>
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        <label for="network-local-address">Local address <span class="cli-badge">-i</span></label>
+                                        <input type="text" id="network-local-address" placeholder="0.0.0.0" data-section="network" data-field="localAddress" />
+                                        <p class="field-description" data-metadata="localAddress"></p>
+                                        <div class="field-error" id="network-local-address-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-local-port">Local port <span class="cli-badge">-p</span></label>
+                                        <input type="number" id="network-local-port" min="1" max="65535" data-section="network" data-field="localPort" />
+                                        <p class="field-description" data-metadata="localPort"></p>
+                                        <div class="field-error" id="network-local-port-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-remote-address">Remote address <span class="cli-badge">destination</span></label>
+                                        <input type="text" id="network-remote-address" placeholder="192.168.1.100" data-section="network" data-field="remoteAddress" />
+                                        <p class="field-description" data-metadata="remoteAddress"></p>
+                                        <div class="field-error" id="network-remote-address-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-remote-port">Remote port <span class="cli-badge">:[port]</span></label>
+                                        <input type="number" id="network-remote-port" min="1" max="65535" data-section="network" data-field="remotePort" />
+                                        <p class="field-description" data-metadata="remotePort"></p>
+                                        <div class="field-error" id="network-remote-port-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-transport">Transport <span class="cli-badge">-t</span></label>
+                                        <select id="network-transport" data-section="network" data-field="transport">
+                                            <option value="udp">UDP (-t u1)</option>
+                                            <option value="tcp">TCP (-t t1)</option>
+                                            <option value="tls">TLS</option>
+                                            <option value="sctp">SCTP (-t s1)</option>
+                                        </select>
+                                        <p class="field-description" data-metadata="transport"></p>
+                                        <div class="field-error" id="network-transport-error"></div>
+                                    </div>
+                                </div>
+                                <div class="form-field form-field--inline" id="tls-toggle-wrapper">
+                                    <div class="toggle-group">
+                                        <input type="checkbox" id="network-tls-enable" data-section="network" data-field="tls.enabled" />
+                                        <label for="network-tls-enable">Customize TLS handshake options</label>
+                                    </div>
+                                    <p class="field-description" data-metadata="tlsToggle"></p>
+                                    <div class="field-error" id="network-tls-enable-error"></div>
+                                </div>
+                                <div class="form-grid is-hidden" id="tls-fields">
+                                    <div class="form-field">
+                                        <label for="network-tls-cert">Certificate file <span class="cli-badge">-tls_cert</span></label>
+                                        <input type="text" id="network-tls-cert" placeholder="cacert.pem" data-section="network" data-field="tls.certificate" />
+                                        <p class="field-description" data-metadata="tlsCertificate"></p>
+                                        <div class="field-error" id="network-tls-cert-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-tls-key">Private key file <span class="cli-badge">-tls_key</span></label>
+                                        <input type="text" id="network-tls-key" placeholder="cakey.pem" data-section="network" data-field="tls.key" />
+                                        <p class="field-description" data-metadata="tlsKey"></p>
+                                        <div class="field-error" id="network-tls-key-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-tls-ca">Trusted CA bundle <span class="cli-badge">-tls_ca</span></label>
+                                        <input type="text" id="network-tls-ca" placeholder="ca-bundle.pem" data-section="network" data-field="tls.ca" />
+                                        <p class="field-description" data-metadata="tlsCa"></p>
+                                        <div class="field-error" id="network-tls-ca-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-tls-crl">CRL file <span class="cli-badge">-tls_crl</span></label>
+                                        <input type="text" id="network-tls-crl" placeholder="crl.pem" data-section="network" data-field="tls.crl" />
+                                        <p class="field-description" data-metadata="tlsCrl"></p>
+                                        <div class="field-error" id="network-tls-crl-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="network-tls-version">TLS version <span class="cli-badge">-tls_version</span></label>
+                                        <select id="network-tls-version" data-section="network" data-field="tls.version">
+                                            <option value="">Auto negotiate</option>
+                                            <option value="1.0">TLS 1.0</option>
+                                            <option value="1.1">TLS 1.1</option>
+                                            <option value="1.2">TLS 1.2</option>
+                                            <option value="1.3">TLS 1.3</option>
+                                        </select>
+                                        <p class="field-description" data-metadata="tlsVersion"></p>
+                                        <div class="field-error" id="network-tls-version-error"></div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="config-panel" id="media-config-panel">
+                                <header class="panel-header">
+                                    <h2>Media &amp; SRTP</h2>
+                                    <p class="panel-subtitle">Configure RTP playback, echo loops and SRTP cryptographic profiles.</p>
+                                </header>
+                                <div class="form-field form-field--inline">
+                                    <div class="toggle-group">
+                                        <input type="checkbox" id="media-enable-rtp" data-section="media" data-field="enableRtp" />
+                                        <label for="media-enable-rtp">Enable RTP media</label>
+                                    </div>
+                                    <p class="field-description" data-metadata="enableRtp"></p>
+                                    <div class="field-error" id="media-enable-rtp-error"></div>
+                                </div>
+                                <div class="form-grid is-hidden" id="rtp-fields">
+                                    <div class="form-field">
+                                        <label for="media-mode">Media mode</label>
+                                        <select id="media-mode" data-section="media" data-field="mediaMode">
+                                            <option value="playback">PCAP playback</option>
+                                            <option value="echo">RTP echo loop</option>
+                                            <option value="custom">Custom actions</option>
+                                        </select>
+                                        <p class="field-description" data-metadata="mediaMode"></p>
+                                        <div class="field-error" id="media-mode-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="media-codec">Preferred codec</label>
+                                        <select id="media-codec" data-section="media" data-field="codec">
+                                            <option value="PCMU/8000">PCMU/8000 (G.711 μ-law)</option>
+                                            <option value="PCMA/8000">PCMA/8000 (G.711 A-law)</option>
+                                            <option value="G722/8000">G722/8000</option>
+                                            <option value="G729/8000">G729/8000</option>
+                                            <option value="iLBC/8000">iLBC/8000</option>
+                                        </select>
+                                        <p class="field-description" data-metadata="codec"></p>
+                                        <div class="field-error" id="media-codec-error"></div>
+                                    </div>
+                                    <div class="form-field" id="media-pcap-field">
+                                        <label for="media-pcap">Primary PCAP file</label>
+                                        <input type="text" id="media-pcap" list="pcap-files" placeholder="pcap/g711a.pcap" data-section="media" data-field="pcapFile" />
+                                        <p class="field-description" data-metadata="pcapFile"></p>
+                                        <div class="field-error" id="media-pcap-error"></div>
+                                    </div>
+                                    <div class="form-field form-field--inline" id="media-playback-field">
+                                        <div class="toggle-group">
+                                            <input type="checkbox" id="media-enable-playback" data-section="media" data-field="enablePlayback" />
+                                            <label for="media-enable-playback">Trigger PCAP playback actions</label>
+                                        </div>
+                                        <p class="field-description" data-metadata="enablePlayback"></p>
+                                        <div class="field-error" id="media-enable-playback-error"></div>
+                                    </div>
+                                    <div class="form-field form-field--inline" id="media-echo-field">
+                                        <div class="toggle-group">
+                                            <input type="checkbox" id="media-enable-echo" data-section="media" data-field="enableEcho" />
+                                            <label for="media-enable-echo">Enable RTP echo responder</label>
+                                        </div>
+                                        <p class="field-description" data-metadata="enableEcho"></p>
+                                        <div class="field-error" id="media-enable-echo-error"></div>
+                                    </div>
+                                    <div class="form-field" id="media-dtmf-field">
+                                        <label for="media-dtmf-pcap">Optional DTMF PCAP</label>
+                                        <input type="text" id="media-dtmf-pcap" list="pcap-files" placeholder="pcap/dtmf_2833_1.pcap" data-section="media" data-field="dtmfPcap" />
+                                        <p class="field-description" data-metadata="dtmfPcap"></p>
+                                        <div class="field-error" id="media-dtmf-pcap-error"></div>
+                                    </div>
+                                </div>
+                                <div class="form-field form-field--inline" id="media-srtp-toggle">
+                                    <div class="toggle-group">
+                                        <input type="checkbox" id="media-enable-srtp" data-section="media" data-field="enableSrtp" />
+                                        <label for="media-enable-srtp">Enable SRTP protection</label>
+                                    </div>
+                                    <p class="field-description" data-metadata="enableSrtp"></p>
+                                    <div class="field-error" id="media-enable-srtp-error"></div>
+                                </div>
+                                <div class="form-grid is-hidden" id="srtp-fields">
+                                    <div class="form-field">
+                                        <label for="media-srtp-profile">Crypto profile</label>
+                                        <select id="media-srtp-profile" data-section="media" data-field="srtpProfile">
+                                            <option value="AES_CM_128_HMAC_SHA1_80">AES_CM_128_HMAC_SHA1_80</option>
+                                            <option value="AES_CM_128_HMAC_SHA1_32">AES_CM_128_HMAC_SHA1_32</option>
+                                            <option value="NULL_HMAC_SHA1_80">NULL_HMAC_SHA1_80</option>
+                                            <option value="NULL_HMAC_SHA1_32">NULL_HMAC_SHA1_32</option>
+                                        </select>
+                                        <p class="field-description" data-metadata="srtpProfile"></p>
+                                        <div class="field-error" id="media-srtp-profile-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="media-srtp-key">Master key (base64)</label>
+                                        <input type="text" id="media-srtp-key" placeholder="MTIzNDU2Nzg5MDEyMzQ1Ng==" data-section="media" data-field="srtpMasterKey" />
+                                        <p class="field-description" data-metadata="srtpMasterKey"></p>
+                                        <div class="field-error" id="media-srtp-key-error"></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="media-srtp-salt">Master salt (base64)</label>
+                                        <input type="text" id="media-srtp-salt" placeholder="MTIzNDU2Nzg5MDEyMzQ1" data-section="media" data-field="srtpMasterSalt" />
+                                        <p class="field-description" data-metadata="srtpMasterSalt"></p>
+                                        <div class="field-error" id="media-srtp-salt-error"></div>
+                                    </div>
+                                </div>
+                                <datalist id="pcap-files">
+                                    <option value="pcap/g711a.pcap"></option>
+                                    <option value="pcap/dtmf_2833_1.pcap"></option>
+                                    <option value="pcap/dtmf_2833_star.pcap"></option>
+                                </datalist>
+                            </section>
+                        </div>
+                        <aside class="summary-panel" id="configuration-summary">
+                            <h2>Configuration Summary</h2>
+                            <div class="summary-section">
+                                <p class="summary-empty">Choose a template or adjust the forms to preview the combined configuration.</p>
+                            </div>
+                        </aside>
+                    </div>
+
                     <div class="visual-canvas" id="visual-canvas">
                         <div class="empty-state">
                             <h2>👈 Select a template to get started</h2>
