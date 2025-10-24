@@ -1,0 +1,28 @@
+{
+  "name": "sipp-scenario-designer",
+  "version": "1.0.0",
+  "description": "Visual editor for SIPp XML scenarios",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve . -l 8080",
+    "build": "echo 'No build step required - static files only' && npm run validate",
+    "validate": "node validate.js"
+  },
+  "keywords": [
+    "sipp",
+    "sip",
+    "voip",
+    "testing",
+    "scenario",
+    "editor"
+  ],
+  "author": "SIPp Contributors",
+  "license": "GPL-2.0",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SIPp/sipp.git"
+  },
+  "homepage": "https://github.com/SIPp/sipp"
+}
