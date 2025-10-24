@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPp Scenario Designer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SIPp Scenario Designer</h1>
+            <p class="subtitle">Visual editor for SIPp XML scenarios</p>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <div class="section">
+                    <h3>Start from Template</h3>
+                    <div class="template-grid">
+                        <button class="template-btn" data-template="uac">
+                            <span class="template-icon">📞</span>
+                            <span class="template-name">UAC</span>
+                            <span class="template-desc">User Agent Client</span>
+                        </button>
+                        <button class="template-btn" data-template="uas">
+                            <span class="template-icon">📱</span>
+                            <span class="template-name">UAS</span>
+                            <span class="template-desc">User Agent Server</span>
+                        </button>
+                        <button class="template-btn" data-template="3pcc">
+                            <span class="template-icon">🔀</span>
+                            <span class="template-name">3PCC</span>
+                            <span class="template-desc">Third Party Call Control</span>
+                        </button>
+                        <button class="template-btn" data-template="rtp">
+                            <span class="template-icon">🎵</span>
+                            <span class="template-name">RTP Playback</span>
+                            <span class="template-desc">UAC with Media</span>
+                        </button>
+                        <button class="template-btn" data-template="srtp">
+                            <span class="template-icon">🔐</span>
+                            <span class="template-name">SRTP</span>
+                            <span class="template-desc">Secure RTP</span>
+                        </button>
+                        <button class="template-btn" data-template="blank">
+                            <span class="template-icon">📄</span>
+                            <span class="template-name">Blank</span>
+                            <span class="template-desc">Empty scenario</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Actions</h3>
+                    <button class="action-btn" id="btn-new">
+                        <span>🆕</span> New Scenario
+                    </button>
+                    <button class="action-btn" id="btn-download">
+                        <span>💾</span> Download XML
+                    </button>
+                    <button class="action-btn" id="btn-validate">
+                        <span>✅</span> Validate
+                    </button>
+                    <button class="action-btn" id="btn-help">
+                        <span>❓</span> Help
+                    </button>
+                </div>
+
+                <div class="section">
+                    <h3>SIPp CLI Usage</h3>
+                    <div class="cli-hint">
+                        <code id="cli-command">sipp -sf scenario.xml [destination]</code>
+                    </div>
+                    <small>Common options:</small>
+                    <ul class="cli-options">
+                        <li><code>-r</code> - call rate (calls/sec)</li>
+                        <li><code>-m</code> - max calls</li>
+                        <li><code>-d</code> - pause duration (ms)</li>
+                        <li><code>-t</code> - transport (u1/t1/l1)</li>
+                        <li><code>-i</code> - local IP</li>
+                    </ul>
+                </div>
+            </aside>
+
+            <main class="editor-area">
+                <div class="editor-header">
+                    <div class="scenario-info">
+                        <label>
+                            Scenario Name:
+                            <input type="text" id="scenario-name" value="My Scenario" />
+                        </label>
+                    </div>
+                    <div class="editor-tabs">
+                        <button class="tab-btn active" data-tab="visual">Visual</button>
+                        <button class="tab-btn" data-tab="xml">XML</button>
+                    </div>
+                </div>
+
+                <div id="visual-editor" class="editor-panel active">
+                    <div class="visual-canvas" id="visual-canvas">
+                        <div class="empty-state">
+                            <h2>👈 Select a template to get started</h2>
+                            <p>Choose from UAC, UAS, 3PCC, RTP playback, or SRTP scenarios</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="xml-editor" class="editor-panel">
+                    <textarea id="xml-content" spellcheck="false"></textarea>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>SIPp Scenario Designer Help</h2>
+            
+            <h3>Getting Started</h3>
+            <p>The SIPp Scenario Designer helps you create and edit SIPp XML scenarios visually:</p>
+            <ol>
+                <li><strong>Select a Template:</strong> Choose from pre-built scenarios (UAC, UAS, 3PCC, RTP, SRTP)</li>
+                <li><strong>Edit in Visual or XML mode:</strong> Switch between visual representation and raw XML</li>
+                <li><strong>Download:</strong> Export your scenario as an XML file</li>
+                <li><strong>Use with SIPp:</strong> Run with <code>sipp -sf scenario.xml [destination]</code></li>
+            </ol>
+
+            <h3>Template Types</h3>
+            <ul>
+                <li><strong>UAC (User Agent Client):</strong> Initiates SIP calls with INVITE/ACK/BYE flow</li>
+                <li><strong>UAS (User Agent Server):</strong> Receives and responds to SIP calls</li>
+                <li><strong>3PCC (Third Party Call Control):</strong> Controls calls between two parties</li>
+                <li><strong>RTP Playback:</strong> UAC scenario with PCAP audio playback</li>
+                <li><strong>SRTP:</strong> Secure RTP with crypto negotiation</li>
+            </ul>
+
+            <h3>Configuration Tips</h3>
+            <ul>
+                <li>Use SIPp variables like <code>[remote_ip]</code>, <code>[local_ip]</code>, <code>[call_id]</code></li>
+                <li>Test scenarios with <code>sipp -sf scenario.xml -t u1 destination:5060</code></li>
+                <li>For UAC scenarios, specify service with <code>-s service_name</code></li>
+                <li>For UAS scenarios, use <code>sipp -sn uas</code> as the peer</li>
+            </ul>
+
+            <h3>Resources</h3>
+            <ul>
+                <li><a href="https://sipp.readthedocs.io" target="_blank">SIPp Documentation</a></li>
+                <li><a href="https://github.com/SIPp/sipp" target="_blank">SIPp GitHub Repository</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="templates.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
