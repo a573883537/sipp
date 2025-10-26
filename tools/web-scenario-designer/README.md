@@ -1,11 +1,29 @@
 # SIPp Scenario Designer
 
-A lightweight, browser-based visual editor for creating and editing SIPp XML scenarios. This tool provides pre-built templates for common SIP testing patterns and an intuitive interface for both beginners and advanced users.
+A comprehensive suite of browser-based visual editors for creating and editing SIPp XML scenarios. This toolset provides pre-built templates for common SIP testing patterns and intuitive interfaces for both beginners and advanced users.
 
 ![SIPp Scenario Designer](screenshots/main-view.png)
 
+## Two Designer Options
+
+### 1. Configuration Designer (index.html)
+A lightweight, no-build-required HTML/CSS/JS tool focused on:
+- Pre-built templates with configuration forms
+- CLI option tuning (call rate, network, media)
+- Quick scenario generation
+- **Best for**: Quick testing, beginners, no Node.js required
+
+### 2. Visual Flow Editor (flow-editor/)
+A React Flow-based drag-and-drop editor featuring:
+- Interactive graph-based scenario building
+- Node-by-node property editing
+- Real-time validation
+- Advanced flow control (branches, loops, labels)
+- **Best for**: Complex scenarios, visual learners, advanced users
+
 ## Features
 
+### Configuration Designer
 - 📋 **Pre-built Templates**: UAC, UAS, 3PCC, RTP playback, and SRTP scenarios
 - 🎨 **Dual View Modes**: Visual flow diagram and XML editor
 - 📂 **XML Import**: Upload and parse existing SIPp scenarios
@@ -16,9 +34,19 @@ A lightweight, browser-based visual editor for creating and editing SIPp XML sce
 - 🚀 **No Installation**: Pure HTML/CSS/JS - works in any modern browser
 - 📖 **Integrated Help**: SIPp CLI usage examples and configuration tips
 
+### Visual Flow Editor
+- 🎨 **Drag & Drop**: Build scenarios visually with node-based graph
+- 📝 **Node Types**: Send, Recv, Pause, NOP, Label, Timewait
+- 🔍 **Property Inspector**: Form-based editing of node properties
+- 🔗 **Visual Connections**: See message flow with animated edges
+- ✅ **Real-time Validation**: Inline error checking
+- 💾 **XML Export**: Generate valid SIPp XML from visual flow
+- 📋 **Templates**: Pre-built UAC/UAS templates
+- 🛠️ **Toolbelt Actions**: Add, remove, reorder, group nodes
+
 ## Quick Start
 
-### Using the Tool
+### Configuration Designer
 
 1. **Open in Browser**: Simply open `index.html` in any modern web browser
 2. **Select a Template**: Click on one of the scenario templates (UAC, UAS, etc.)
@@ -29,16 +57,48 @@ A lightweight, browser-based visual editor for creating and editing SIPp XML sce
    - Click "Copy XML" to copy to clipboard
 5. **Run with SIPp**: Use the generated CLI command shown in the sidebar
 
-### Example Workflow
-
 ```bash
-# Open the tool (from project root)
+# Open the configuration designer
 cd tools/web-scenario-designer
 open index.html  # macOS
 # or
 xdg-open index.html  # Linux
 # or double-click index.html in Windows Explorer
+```
 
+### Visual Flow Editor
+
+1. **Install Dependencies**: 
+   ```bash
+   cd tools/web-scenario-designer/flow-editor
+   npm install
+   ```
+
+2. **Start Development Server**:
+   ```bash
+   npm run dev
+   ```
+   Open http://localhost:3000
+
+3. **Build Scenario**:
+   - Click node buttons in left toolbar to add nodes
+   - Drag connections between nodes
+   - Click a node to edit its properties
+   - Click "Apply Changes" to save edits
+
+4. **Export**:
+   - Click "Export XML" to download scenario
+   - Use with SIPp CLI
+
+5. **Production Build**:
+   ```bash
+   npm run build
+   # Serve the dist/ directory
+   ```
+
+### Example Workflow
+
+```bash
 # After creating your scenario and downloading as 'my_scenario.xml'
 
 # Run UAC scenario
