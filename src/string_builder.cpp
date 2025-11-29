@@ -11,21 +11,26 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef FILEUTIL_H
-#define FILEUTIL_H
+#include "string_builder.hpp"
+#include <cstring>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-char* find_file(const char* filename, const char *basepath);
-
-#ifdef __cplusplus
+StringBuilder::StringBuilder(char* buf, size_t size) : buffer(buf), current(buf), remaining(size) {
+    if (remaining > 0) {
+        buffer[0] = '\0';
+    }
 }
-#endif
 
-#endif /* FILEUTIL_H */
+StringBuilder& StringBuilder::operator<<(const char* str) {
+    if (str && remaining > 1) {
+        const size_t len = strlen(str);
+        const size_t to_copy = (len < remaining - 1) ? len : remaining - 1;
+        memcpy(current, str, to_copy);
+        current += to_copy;
+        remaining -= to_copy;
+        *current = '\0';
+    }
+    return *this;
+}

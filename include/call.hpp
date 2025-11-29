@@ -33,7 +33,7 @@
 #include "send_packets.h"
 #endif
 #include "rtpstream.hpp"
-#include "jlsrtp.hpp"
+#include "srtp_channel.hpp"
 
 #include <stdarg.h>
 
@@ -77,8 +77,8 @@ class call : virtual public task, virtual public listener, public virtual socket
 public:
     /* These are wrappers for various circumstances, (private) init does the real work. */
     //call(char * p_id, int userId, bool ipv6, bool isAutomatic);
-    call(const char *p_id, bool use_ipv6, int userId, struct sockaddr_storage *dest);
-    call(const char *p_id, SIPpSocket *socket, struct sockaddr_storage *dest);
+    call(scenario *call_scenario, const char *p_id, bool use_ipv6, int userId, struct sockaddr_storage *dest);
+    call(scenario *call_scenario, const char *p_id, SIPpSocket *socket, struct sockaddr_storage *dest);
     static call *add_call(int userId, bool ipv6, struct sockaddr_storage *dest);
     call(scenario * call_scenario, SIPpSocket *socket, struct sockaddr_storage *dest, const char * p_id, int userId, bool ipv6, bool isAutomatic, bool isInitCall);
 
@@ -188,14 +188,14 @@ protected:
 #endif
 
     rtpstream_callinfo_t rtpstream_callinfo;
-    JLSRTP _txUACAudio;
-    JLSRTP _rxUACAudio;
-    JLSRTP _txUASAudio;
-    JLSRTP _rxUASAudio;
-    JLSRTP _txUACVideo;
-    JLSRTP _rxUACVideo;
-    JLSRTP _txUASVideo;
-    JLSRTP _rxUASVideo;
+    SrtpChannel _txUACAudio;
+    SrtpChannel _rxUACAudio;
+    SrtpChannel _txUASAudio;
+    SrtpChannel _rxUASAudio;
+    SrtpChannel _txUACVideo;
+    SrtpChannel _rxUACVideo;
+    SrtpChannel _txUASVideo;
+    SrtpChannel _rxUASVideo;
 #ifdef USE_TLS
     char _pref_audio_cs_out[25];
     char _pref_video_cs_out[25];
