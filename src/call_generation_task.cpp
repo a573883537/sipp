@@ -153,7 +153,115 @@ bool CallGenerationTask::run()
         if(!call_ptr) {
             ERROR("Out of memory allocating call!");
         }
-
+#ifdef YEASTAR_TLS_SHARING
+		/* 如果使用 TLS 且指定了注册场景，首先创建注册呼叫 */
+		/* 在非用户模式下，使用主呼叫的编号以确保它们使用相同的输入文件数据（分机号） */
+		if (register_scenario && transport == T_TLS) {
+			/* 从输入文件获取分机号，用作 socket 查找和重复检查的键 */
+			char extension[MAX_HEADER_LEN] = "";
+			std::string extension_key;
+			if (userid == 0) {
+				/* 在非用户模式下，尝试从输入文件获取分机号（field0） */
+				if (default_file) {
+					call::getInputFileField(call_ptr, 0, extension, sizeof(extension));
+				}
+				
+				if (extension[0] != '\0') {
+					extension_key = std::string(extension);
+				} else {
+					/* 如果无法读取分机号，则回退到呼叫编号 */
+					char num_str[32];
+					snprintf(num_str, sizeof(num_str), "%u", call_ptr->number);
+					extension_key = std::string(num_str);
+				}
+			} else {
+				/* 在用户模式下，使用 userid 作为键 */
+				char userid_str[32];
+				snprintf(userid_str, sizeof(userid_str), "%d", userid);
+				extension_key = std::string(userid_str);
+			}
+			
+			/* 检查是否已经存在该分机号的 TLS socket（来自之前的注册呼叫） */
+			/* 如果 socket 存在且有效，跳过创建新的注册呼叫 */
+			std::map<std::string, SIPpSocket*>::iterator it = register_tls_socket_map.find(extension_key);
+			if (it != register_tls_socket_map.end() && it->second != nullptr && it->second->ss_fd != -1) {
+				/* 该分机号的 TLS socket 已存在，跳过创建注册呼叫 */
+			} else if (register_in_progress_set.find(extension_key) != register_in_progress_set.end()) {
+				/* 该分机号的注册呼叫正在进行中，跳过创建重复的注册呼叫 */
+			} else {
+				/* 检查是否已达到最大注册呼叫数量 */
+				unsigned long long register_calls_created = 0;
+				if (register_scenario->stats) {
+					register_calls_created = register_scenario->stats->GetStat(CStat::CPT_C_OutgoingCallCreated) + 
+											register_scenario->stats->GetStat(CStat::CPT_C_IncomingCallCreated);
+				}
+				
+				if (register_max_calls == 0xffffffff || register_calls_created < register_max_calls) {
+					/* 为该分机号创建注册呼叫 */
+					/* 在非用户模式下，使用主呼叫的编号以确保使用相同的输入文件行 */
+					/* 在用户模式下，使用与主呼叫相同的 userid */
+					char reg_call_id[MAX_HEADER_LEN];
+					snprintf(reg_call_id, sizeof(reg_call_id), "reg-%u-%s", pid, extension_key.c_str());
+					
+					call* register_call = new call(register_scenario, reg_call_id, local_ip_is_ipv6, 
+													userid,  /* 使用与主呼叫相同的 userid */
+													use_remote_sending_addr ? &remote_sending_sockaddr : &remote_sockaddr);
+					
+					if (!register_call) {
+						ERROR("Out of memory allocating registration call!");
+					} else {
+						/* 在非用户模式下，设置注册呼叫的编号以匹配主呼叫的编号 */
+						/* 这确保它们使用相同的输入文件行 */
+						/* 复制主呼叫的输入文件行号以确保它们使用完全相同的数据 */
+						if (userid == 0) {
+							register_call->number = call_ptr->number;
+							/* 复制主呼叫的输入文件行号以确保它们使用完全相同的数据 */
+							/* 这适用于所有输入文件模式（SEQUENTIAL, USER, RANDOM） */
+							register_call->copyLineNumbers(call_ptr);
+						}
+						
+						/* 标记该分机号有注册呼叫正在进行中 */
+						register_in_progress_set.insert(extension_key);
+						
+						/* 在 register_call 中存储 extension_key，供后续 socket 缓存使用 */
+						/* 我们将在需要时使用辅助方法获取分机号 */
+						
+						/* 注册场景呼叫将建立 TLS 连接并将其缓存在 register_tls_socket_map 中 */
+						/* 该呼叫将由正常的任务调度器处理 */
+						/* 对于多 socket 模式，socket 将在调用 connect_socket_if_needed 时创建 */
+						/* 对于非多 socket 模式，关联到现有 socket */
+						if (!multisocket) {
+							switch(transport) {
+							case T_UDP:
+								register_call->associate_socket(main_socket);
+								main_socket->ss_count++;
+								break;
+							case T_TCP:
+							case T_SCTP:
+							case T_TLS:
+								register_call->associate_socket(tcp_multiplex);
+								tcp_multiplex->ss_count++;
+								break;
+							}
+						}
+						/* 注册呼叫将由 call::init() 自动设置为运行状态 */
+						/* 这里不需要调用 setRunning()，因为它是受保护的，且 init() 已经调用了它 */
+						WARNING("Registration call created successfully for extension=%s, call_id=%s (multisocket=%s)", 
+								extension_key.c_str(), reg_call_id, multisocket ? "true" : "false");
+					}
+				} else {
+					WARNING("Maximum register calls reached (%llu >= %lu), skipping registration call creation for extension=%s", 
+							register_calls_created, register_max_calls, extension_key.c_str());
+				}
+			}
+		} else {
+			if (!register_scenario) {
+				WARNING("register_scenario is null, skipping registration call creation");
+			} else if (transport != T_TLS) {
+				WARNING("transport=%d is not T_TLS (%d), skipping registration call creation", transport, T_TLS);
+			}
+		}
+#endif
         outbound_congestion = false;
 
         if (!multisocket) {

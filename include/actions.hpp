@@ -23,6 +23,7 @@
 #ifndef _CACTIONS
 #define _CACTIONS
 
+#include "defines.h"
 #include "variables.hpp"
 #include "message.hpp"
 class CSample;

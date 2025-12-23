@@ -22,6 +22,7 @@
 #ifndef __CALL__
 #define __CALL__
 
+#include "defines.h"
 #include <map>
 #include <list>
 #include <sys/types.h>
@@ -115,6 +116,25 @@ public:
     const char *getLastReceived() {
         return last_recv_msg;
     };
+#ifdef YEASTAR_TLS_SHARING
+	unsigned int number;  /* 呼叫编号 - 当定义了 YEASTAR_TLS_SHARING 时，公开供 CallGenerationTask 访问 */
+	static int maxDynamicId;    // max value for dynamicId; this value is reached !
+	static int startDynamicId;  // offset for first dynamicId  FIXME:in CmdLine
+	static int stepDynamicId;   // step of increment for dynamicId
+	static int dynamicId;       // a counter for general use, incrementing  by  stepDynamicId starting at startDynamicId  wrapping at maxDynamicId  GLOBALY
+
+	/* 使用特定标识符重新初始化输入文件行号（用于非用户模式） */
+	void reinitLineNumbers(int lookup_id);
+
+	/* 从另一个呼叫复制输入文件行号（用于注册呼叫使用与主呼叫相同的输入文件数据） */
+	void copyLineNumbers(call *source_call);
+
+	/* 从输入文件获取字段值（用于日志记录） */
+	static void getInputFileField(call *call_ptr, int field, char *dest, int len);
+
+	/* 从此呼叫的输入文件获取分机号（field0） */
+	void getExtension(char *dest, int len);
+#endif
 
 private:
     /* This is the core constructor function. */
@@ -128,13 +148,17 @@ private:
     struct sockaddr_storage call_peer;
 
     scenario *call_scenario;
+#ifndef YEASTAR_TLS_SHARING
     unsigned int   number;
+#endif
 
 public:
+#ifndef YEASTAR_TLS_SHARING
     static   int   maxDynamicId;    // max value for dynamicId; this value is reached !
     static   int   startDynamicId;  // offset for first dynamicId  FIXME:in CmdLine
     static   int   stepDynamicId;   // step of increment for dynamicId
     static   int   dynamicId;       // a counter for general use, incrementing  by  stepDynamicId starting at startDynamicId  wrapping at maxDynamicId  GLOBALY
+#endif
 protected:
 
 
@@ -220,6 +244,10 @@ protected:
     char           *peer_tag;
 
     SIPpSocket *call_remote_socket;
+#ifdef YEASTAR_TLS_SHARING
+    SIPpSocket *tls_socket_cache;  /* 缓存的 TLS socket，用于在注册和邀请之间重用 */
+#endif
+
     int            call_port;
 
     void         * comp_state;

@@ -20,6 +20,8 @@
 #ifndef __SIPP_SOCKET_H__
 #define __SIPP_SOCKET_H__
 
+#include "defines.h"
+
 #ifdef USE_TLS
 #include "sslsocket.hpp"
 #endif
@@ -73,6 +75,9 @@ public:
 
     int connect(struct sockaddr_storage* dest = nullptr);
     int reconnect();
+#ifdef YEASTAR_TLS_SHARING
+    bool is_connected(); /* 检查连接是否完全建立（对于 TLS，包括 SSL 握手） */
+#endif
 
     // Reset a failed connection
     void reset_connection();
