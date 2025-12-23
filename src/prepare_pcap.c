@@ -568,7 +568,9 @@ int prepare_dtmf(const char* digits, pcap_pkts* pkts, uint16_t start_seq_no)
     dtmf_ssrcid++;
     /* Because we need to warm up the stream (puncture NAT, make phone
      * accept the SSRC(?)), we add a few filler packets first. */
-    needs_filler = 1;
+
+	/* we don't need to warm up the stream*/
+    needs_filler = 0;
 
     pkts->pkts = NULL;
 
