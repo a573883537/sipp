@@ -61,6 +61,7 @@ void print_bottom_line(FILE *f, int last);
 void print_variable_list();
 void print_tdm_map();
 void print_screens(void);
+void fflush_screens();
 
 void log_off(struct logfile_info *lfi);
 

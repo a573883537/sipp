@@ -243,6 +243,13 @@ void print_screens(void)
     currentRepartitionToDisplay = oldRepartition;
 }
 
+void fflush_screens()
+{
+	if (screen_lfi.fptr) {
+		fflush(screen_lfi.fptr);
+	}
+}
+
 static void rotatef(struct logfile_info* lfi)
 {
     char L_rotate_file_name[MAX_PATH];

@@ -507,11 +507,13 @@ static void traffic_thread(int &rtp_errors, int &echo_errors)
             /* Screen dumping in a file */
             if (useScreenf == 1) {
                 print_screens();
+				fflush_screens();
             } else {
                 /* If the -trace_screen option has not been set, */
                 /* create the file at this occasion              */
                 rotate_screenf();
                 print_screens();
+				fflush_screens();
             }
 
             if (dumpInRtt) {
