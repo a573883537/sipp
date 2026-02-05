@@ -40,9 +40,4 @@ extern "C" {
 #define EXIT_BIND_ERROR            -2
 #define EXIT_RTPCHECK_FAILED       -3
 
-/* 自定义功能：注册和邀请场景之间共享 TLS socket */
-#ifndef YEASTAR_TLS_SHARING
-#define YEASTAR_TLS_SHARING
-#endif
-
 #endif /* __DEFINES_H__ */

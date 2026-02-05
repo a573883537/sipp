@@ -240,9 +240,6 @@ private:
 extern scenario      *main_scenario;
 extern scenario      *rx_scenario;
 extern scenario      *ooc_scenario;
-#ifdef YEASTAR_TLS_SHARING
-extern scenario      *register_scenario;
-#endif
 extern scenario      *aa_scenario;
 extern scenario      *display_scenario;
 extern int           creationMode;

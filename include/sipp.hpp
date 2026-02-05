@@ -274,9 +274,6 @@ MAYBE_EXTERN int                remote_port             DEFVAL(DEFAULT_PORT);
 MAYBE_EXTERN unsigned int       pid                     DEFVAL(0);
 MAYBE_EXTERN bool               print_all_responses     DEFVAL(false);
 MAYBE_EXTERN unsigned long      stop_after              DEFVAL(0xffffffff);
-#ifdef YEASTAR_TLS_SHARING
-MAYBE_EXTERN unsigned long      register_max_calls      DEFVAL(0xffffffff);  /* 最大注册呼叫数量 */
-#endif
 MAYBE_EXTERN int                quitting                DEFVAL(0);
 MAYBE_EXTERN int                interrupt               DEFVAL(0);
 MAYBE_EXTERN bool               paused                  DEFVAL(false);
@@ -423,10 +420,6 @@ MAYBE_EXTERN  int stepDynamicId   DEFVAL(4);      // step of increment for dynam
 MAYBE_EXTERN SIPpSocket   *main_socket                  DEFVAL(nullptr);
 MAYBE_EXTERN SIPpSocket   *main_remote_socket           DEFVAL(nullptr);
 MAYBE_EXTERN SIPpSocket   *tcp_multiplex                DEFVAL(nullptr);
-#ifdef YEASTAR_TLS_SHARING
-MAYBE_EXTERN std::map<std::string, SIPpSocket*> register_tls_socket_map;  /* 从注册场景映射分机号到 TLS socket */
-MAYBE_EXTERN std::set<std::string> register_in_progress_set;  /* 正在注册中的分机号集合 */
-#endif
 MAYBE_EXTERN int media_socket_audio                     DEFVAL(0);
 MAYBE_EXTERN int media_socket_video                     DEFVAL(0);
 

@@ -121,10 +121,6 @@ struct sipp_option {
 #define SIPP_OPTION_NEED_SCTP     39
 #define SIPP_OPTION_RX_SCENARIO   40
 #define SIPP_OPTION_RX_INPUT_FILE 41
-#ifdef YEASTAR_TLS_SHARING
-#define SIPP_OPTION_REG_SCENARIO  42
-#define SIPP_OPTION_REG_MAX_CALLS 43
-#endif
 #define SIPP_HELP_TEXT_HEADER    255
 
 /* Put each option, its help text, and type in this table. */
@@ -138,10 +134,6 @@ struct sipp_option options_table[] = {
     {"rxsf", "Loads an alternate receive xml scenario file as the second scenario - enabling a mixture of originating and terminating calls to be executed.\n"
      "If this is included then the second scenario MUST be a server mode scenario, and the first scenario (specified in -sf / -sn) MUST be a client-mode scenario.\n"
      "If both -snrx and -sfrx are omitted then only a single scenario is executed.", SIPP_OPTION_RX_SCENARIO, NULL, 2},
-#ifdef YEASTAR_TLS_SHARING
-	{"regsf", "Loads a registration XML scenario file. When using TLS transport, this scenario will be executed once before starting the main scenario loop. The TLS connection established during registration will be reused for the main scenario calls.", SIPP_OPTION_REG_SCENARIO, nullptr, 2},
-	{"regm", "Stop creating registration calls when 'calls' registration calls are processed. Default is unlimited.", SIPP_OPTION_LONG, &register_max_calls, 1},
-#endif
     {"oocsf", "Load out-of-call scenario.", SIPP_OPTION_OOC_SCENARIO, nullptr, 2},
     {"oocsn", "Load out-of-call scenario.", SIPP_OPTION_OOC_SCENARIO, nullptr, 2},
     {
@@ -1788,19 +1780,6 @@ int main(int argc, char *argv[])
                     ERROR("Internal error, I don't recognize %s as a scenario option\n", argv[argi] - 1);
                 }
                 break;
-#ifdef YEASTAR_TLS_SHARING
-			case SIPP_OPTION_REG_SCENARIO:
-				REQUIRE_ARG();
-				CHECK_PASS();
-				if (register_scenario) {
-					ERROR("Internal error, register_scenario already set");
-				} else if (!strcmp(argv[argi - 1], "-regsf")) {
-					register_scenario = new scenario(argv[argi], 0);
-				} else {
-					ERROR("Internal error, I don't recognize %s as a register scenario option", argv[argi - 1]);
-				}
-				break;
-#endif	
             case SIPP_OPTION_OOC_SCENARIO:
                 REQUIRE_ARG();
                 CHECK_PASS();
@@ -2158,29 +2137,7 @@ int main(int argc, char *argv[])
     if (ooc_scenario) {
         ooc_scenario->runInit();
     }
-#ifdef YEASTAR_TLS_SHARING
-	if (register_scenario) {
-		WARNING("Initializing registration scenario: %s", register_scenario->getFileName().c_str());
-		register_scenario->runInit();
-		/* 在计算注册场景模式之前保存当前的 sendMode */
-		int saved_sendMode = sendMode;
-		int saved_creationMode = creationMode;
-		register_scenario->computeSippMode();
-		/* 验证注册场景是客户端模式 */
-		if (sendMode != MODE_CLIENT) {
-			ERROR("Register scenario must be a client-mode scenario (must start with SEND, not RECV)");
-		}
-		/* 为主场景恢复 sendMode 和 creationMode */
-		sendMode = saved_sendMode;
-		creationMode = saved_creationMode;
-		
-		/* 初始化注册跟踪变量 */
-		register_tls_socket_map.clear();
-		register_in_progress_set.clear();
-		
-		WARNING("Registration scenario initialized successfully");
-	}
-#endif
+
     /* In which mode the tool is launched ? */
     main_scenario->computeSippMode();
     if (ooc_scenario && sendMode == MODE_SERVER) {
@@ -2253,133 +2210,6 @@ int main(int argc, char *argv[])
 #endif
 
     open_connections();
-#ifdef YEASTAR_TLS_SHARING
-	/* 对于服务器模式，如果指定了注册场景，在启动时创建注册呼叫 */
-	if (creationMode == MODE_SERVER && register_scenario && transport == T_TLS) {
-		WARNING("Server mode: Creating registration calls at startup");
-		
-		/* 确定要创建多少个注册呼叫 */
-		unsigned int num_registrations = 0;
-		if (default_file && inFiles.find(default_file) != inFiles.end()) {
-			/* 使用输入文件行数 */
-			num_registrations = inFiles[default_file]->numLines();
-			WARNING("Server mode: Found %u lines in input file %s, will create %u registration calls", 
-					num_registrations, default_file, num_registrations);
-		} else if (register_max_calls != 0xffffffff) {
-			/* 如果指定了 register_max_calls，则使用它 */
-			num_registrations = register_max_calls;
-			WARNING("Server mode: Using register_max_calls=%u to create registration calls", num_registrations);
-		} else {
-			/* 如果没有输入文件，默认为 1 个注册呼叫 */
-			num_registrations = 1;
-			WARNING("Server mode: No input file found, creating 1 default registration call");
-		}
-		
-		/* 如果指定了 register_max_calls，则限制注册呼叫数量 */
-		if (register_max_calls != 0xffffffff && num_registrations > register_max_calls) {
-			num_registrations = register_max_calls;
-			WARNING("Server mode: Limiting registration calls to register_max_calls=%u", num_registrations);
-		}
-		
-		/* 为输入文件中的每个分机号创建注册呼叫 */
-		for (unsigned int i = 0; i < num_registrations; i++) {
-			char extension[MAX_HEADER_LEN] = "";
-			std::string extension_key;
-			
-			if (default_file && inFiles.find(default_file) != inFiles.end()) {
-				/* 从输入文件第 i 行获取分机号 */
-				int line = i;
-				inFiles[default_file]->getField(line, 0, extension, sizeof(extension));
-				if (extension[0] != '\0') {
-					extension_key = std::string(extension);
-				} else {
-					/* 如果分机号为空，则回退到行号 */
-					char num_str[32];
-					snprintf(num_str, sizeof(num_str), "%u", i + 1);
-					extension_key = std::string(num_str);
-				}
-			} else {
-				/* 没有输入文件，使用行号 */
-				char num_str[32];
-				snprintf(num_str, sizeof(num_str), "%u", i + 1);
-				extension_key = std::string(num_str);
-			}
-			
-			/* 检查是否已经存在该分机号的 TLS socket */
-			std::map<std::string, SIPpSocket*>::iterator it = register_tls_socket_map.find(extension_key);
-			if (it != register_tls_socket_map.end() && it->second != nullptr && it->second->ss_fd != -1) {
-				WARNING("Server mode: TLS socket already exists for extension=%s (socket fd=%d), skipping registration call creation", 
-						extension_key.c_str(), it->second->ss_fd);
-				continue;
-			}
-			
-			/* 检查注册是否已在进行中 */
-			if (register_in_progress_set.find(extension_key) != register_in_progress_set.end()) {
-				WARNING("Server mode: Registration call already in progress for extension=%s, skipping duplicate", 
-						extension_key.c_str());
-				continue;
-			}
-			
-			/* 创建注册呼叫 */
-			char reg_call_id[MAX_HEADER_LEN];
-			snprintf(reg_call_id, sizeof(reg_call_id), "reg-%u-%s", pid, extension_key.c_str());
-			
-			WARNING("Server mode: Creating registration call %u/%u for extension=%s, call_id=%s", 
-					i + 1, num_registrations, extension_key.c_str(), reg_call_id);
-			
-			/* 创建一个虚拟呼叫以获取该分机号的输入文件行号 */
-			/* 我们需要创建一个具有正确输入文件行号的呼叫 */
-			call* register_call = new call(register_scenario, reg_call_id, local_ip_is_ipv6, 
-											0,  /* userid = 0 表示非用户模式 */
-											use_remote_sending_addr ? &remote_sending_sockaddr : &remote_sockaddr);
-			
-			if (!register_call) {
-				ERROR("Server mode: Out of memory allocating registration call for extension=%s!", extension_key.c_str());
-				continue;
-			}
-			
-			/* 设置呼叫编号并初始化输入文件行号 */
-			/* 注意：call::init 已经设置 number = next_number++，所以我们需要覆盖它 */
-			if (default_file && inFiles.find(default_file) != inFiles.end()) {
-				/* 将编号设置为 i+1 以匹配输入文件行（基于 1） */
-				/* 但是 call::init 已经增加了 next_number，所以我们需要在 init 之后设置它 */
-				register_call->number = i + 1;
-				
-				/* 重新初始化行号以使用正确的输入文件行 */
-				/* 对于 USER 模式，我们需要使用 i+1 作为 lookup_id（因为 USER 模式使用 lookup_id - 1 作为行号） */
-				/* 对于 SEQUENTIAL 模式，我们需要计算哪个行号对应于 i+1 */
-				register_call->reinitLineNumbers(i + 1);
-				
-				WARNING("Server mode: Set registration call number=%u and reinitialized line numbers for extension=%s", 
-						i + 1, extension_key.c_str());
-			}
-			
-			/* 标记该分机号有注册呼叫正在进行中 */
-			register_in_progress_set.insert(extension_key);
-			
-			/* 如果不是多 socket 模式，则关联 socket */
-			if (!multisocket) {
-				switch(transport) {
-				case T_UDP:
-					register_call->associate_socket(main_socket);
-					main_socket->ss_count++;
-					break;
-				case T_TCP:
-				case T_SCTP:
-				case T_TLS:
-					register_call->associate_socket(tcp_multiplex);
-					tcp_multiplex->ss_count++;
-					break;
-				}
-			}
-			
-			WARNING("Server mode: Registration call created successfully for extension=%s, call_id=%s (multisocket=%s)", 
-					extension_key.c_str(), reg_call_id, multisocket ? "true" : "false");
-		}
-		
-		WARNING("Server mode: Created %u registration calls at startup", num_registrations);
-	}
-#endif
 
     /* Always create and Bind RTP socket */
     /* to avoid ICMP errors from us. */

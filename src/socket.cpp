@@ -1165,118 +1165,7 @@ void process_message(SIPpSocket *socket, char *msg, ssize_t msg_size, struct soc
 
             // Adding a new INCOMING call !
             main_scenario->stats->computeStat(CStat::E_CREATE_INCOMING_CALL);
-            call *incoming_call = new call(main_scenario, call_id, socket, use_remote_sending_addr ? &remote_sending_sockaddr : src);
-            listener_ptr = incoming_call;
-#ifdef YEASTAR_TLS_SHARING
-			/* 对于服务器模式下的 TLS 和输入文件，尝试将传入的 INVITE 匹配到输入文件行 */
-			/* 从 To 头或 Request-URI 提取分机号并匹配到输入文件 */
-			if (incoming_call && transport == T_TLS && default_file && inFiles.find(default_file) != inFiles.end()) {
-				/* 存储传入消息以供后续提取 */
-				/* 呼叫将处理消息，我们可以从中提取分机号 */
-				/* 我们需要从 To 头或 Request-URI 提取分机号 */
-				char extension[MAX_HEADER_LEN] = "";
-				std::string extension_key;
-				
-				/* 尝试从 To 头提取分机号 */
-				char *to_header = get_header_content(msg, "To:");
-				if (to_header && strlen(to_header) > 0) {
-					/* 从 To 头提取用户部分："To: <sip:user@domain>" 或 "To: user <sip:user@domain>" */
-					const char *sip_start = strstr(to_header, "sip:");
-					if (sip_start) {
-						sip_start += 4; /* 跳过 "sip:" */
-						const char *at_sign = strchr(sip_start, '@');
-						if (at_sign) {
-							size_t user_len = at_sign - sip_start;
-							if (user_len > 0 && user_len < sizeof(extension)) {
-								strncpy(extension, sip_start, user_len);
-								extension[user_len] = '\0';
-								/* 移除任何参数（例如，;tag=...） */
-								char *param = strchr(extension, ';');
-								if (param) {
-									*param = '\0';
-								}
-								extension_key = std::string(extension);
-							}
-						}
-					}
-				}
-				
-				/* 如果 To 头提取失败，尝试从第一行的 Request-URI 提取 */
-				if (extension_key.empty()) {
-					/* 从 Request-URI 提取："INVITE sip:user@domain SIP/2.0" */
-					const char *sip_start = strstr(msg, "sip:");
-					if (sip_start) {
-						sip_start += 4; /* 跳过 "sip:" */
-						const char *space = strchr(sip_start, ' ');
-						const char *at_sign = strchr(sip_start, '@');
-						if (at_sign && (!space || at_sign < space)) {
-							size_t user_len = at_sign - sip_start;
-							if (user_len > 0 && user_len < sizeof(extension)) {
-								strncpy(extension, sip_start, user_len);
-								extension[user_len] = '\0';
-								extension_key = std::string(extension);
-							}
-						}
-					}
-				}
-				
-				if (!extension_key.empty()) {
-					WARNING("Server mode: Extracted extension='%s' from incoming INVITE", extension_key.c_str());
-					
-					/* 首先，检查该分机号是否已注册（是否有 TLS socket） */
-					std::map<std::string, SIPpSocket*>::iterator it = register_tls_socket_map.find(extension_key);
-					if (it != register_tls_socket_map.end() && it->second != nullptr && it->second->ss_fd != -1) {
-						WARNING("Server mode: Extension='%s' is registered (socket fd=%d), matching to input file", 
-								extension_key.c_str(), it->second->ss_fd);
-						
-						/* 分机号已注册，现在尝试在输入文件中找到匹配的行 */
-						unsigned int num_lines = inFiles[default_file]->numLines();
-						int matched_line = -1;
-						for (unsigned int i = 0; i < num_lines; i++) {
-							char file_extension[MAX_HEADER_LEN] = "";
-							inFiles[default_file]->getField(i, 0, file_extension, sizeof(file_extension));
-							if (strcmp(file_extension, extension_key.c_str()) == 0) {
-								matched_line = i;
-								WARNING("Server mode: Matched extension='%s' to input file line %d", extension_key.c_str(), i);
-								break;
-							}
-						}
-						
-						if (matched_line >= 0) {
-							/* 设置呼叫编号以匹配输入文件行（基于 1） */
-							incoming_call->number = matched_line + 1;
-							
-							/* 重新初始化行号以使用匹配的输入文件行 */
-							incoming_call->reinitLineNumbers(matched_line + 1);
-							
-							WARNING("Server mode: Set incoming call number=%u and reinitialized line numbers for extension=%s", 
-									matched_line + 1, extension_key.c_str());
-							
-							/* 立即将注册的 TLS socket 关联到此呼叫 */
-							/* 这确保呼叫使用与注册相同的 socket */
-							/* 注意：socket 关联将在 connect_socket_if_needed() 中完成 */
-							/* 当呼叫需要发送响应时，但我们已经设置了 */
-							/* 分机号匹配，因此它将找到正确的 socket */
-							WARNING("Server mode: Incoming call for extension='%s' will reuse registered TLS socket (fd=%d) when sending response", 
-									extension_key.c_str(), it->second->ss_fd);
-						} else {
-							WARNING("Server mode: Extension='%s' is registered but not found in input file, using default call number", extension_key.c_str());
-						}
-					} else {
-						/* 分机号尚未注册 */
-						WARNING("Server mode: Extension='%s' is NOT registered (no TLS socket found), cannot match to input file", extension_key.c_str());
-						WARNING("Server mode: Incoming call will use default call number (extension may not be registered yet)");
-						
-						/* 可选地，我们可以检查注册是否正在进行中 */
-						if (register_in_progress_set.find(extension_key) != register_in_progress_set.end()) {
-							WARNING("Server mode: Extension='%s' registration is in progress, waiting for completion", extension_key.c_str());
-						}
-					}
-				} else {
-					WARNING("Server mode: Could not extract extension from incoming INVITE, using default call number");
-				}
-			}
-#endif
+            listener_ptr = new call(main_scenario, call_id, socket, use_remote_sending_addr ? &remote_sending_sockaddr : src);
         } else if(creationMode == MODE_MIXED) {
             /* Ignore quitting for now ... as this is triggered when all tx calls are active
             if (quitting >= 1) {
@@ -1684,75 +1573,7 @@ int SIPpSocket::connect(struct sockaddr_storage* dest)
 
     return 0;
 }
-#ifdef YEASTAR_TLS_SHARING
-/* 检查连接是否完全建立 */
-/* 对于 TLS，这包括 TCP 连接和 SSL 握手 */
-bool SIPpSocket::is_connected()
-{
-	if (ss_fd == -1 || ss_invalid) {
-		return false;
-	}
 
-	if (ss_transport == T_TLS) {
-#if defined(USE_OPENSSL) || defined(USE_WOLFSSL)
-		/* 对于 TLS，检查 SSL 握手是否完成 */
-		if (ss_ssl == nullptr) {
-			return false;
-		}
-		/* 检查 SSL 握手是否实际完成 */
-		/* SSL_is_init_finished() 如果握手完成则返回 1 */
-		if (!SSL_is_init_finished(ss_ssl)) {
-			/* 握手尚未完成，尝试继续它 */
-			/* 尝试继续 SSL 握手，无论拥塞状态如何 */
-			/* socket_thread 将在 socket 变为可读/可写时处理继续握手 */
-			int rc = SSL_connect(ss_ssl);
-			if (rc < 0) {
-				int err = SSL_get_error(ss_ssl, rc);
-				if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-					/* 仍需要等待 socket 就绪 - 确保设置拥塞状态 */
-					if (!ss_congested) {
-						enter_congestion(0);
-						nb_net_cong--;  /* 不要将此计为网络拥塞 */
-					}
-					return false;
-				} else {
-					/* 发生 SSL 错误 */
-					WARNING("SSL_connect failed in is_connected(): %s", SSL_error_string(err, rc));
-					return false;
-				}
-			} else if (rc == 1) {
-				/* SSL 握手成功完成 */
-				/* 如果设置了拥塞状态，则清除它 */
-				if (ss_congested) {
-					ss_congested = false;
-				}
-				return true;
-			} else {
-				/* 意外的返回值 */
-				return false;
-			}
-		}
-		/* SSL 握手已完成 */
-		/* 如果设置了拥塞状态，则清除它 */
-		if (ss_congested) {
-			ss_congested = false;
-		}
-		return true;
-#else
-		return false;
-#endif
-	} else if (ss_transport == T_TCP || ss_transport == T_SCTP) {
-		/* For TCP/SCTP, check if socket is not in congestion state */
-		if (ss_congested) {
-			return false;
-		}
-		return true;
-	}
-
-	/* For UDP, always return true (connectionless) */
-	return true;
-}
-#endif
 
 int SIPpSocket::reconnect()
 {
@@ -3085,61 +2906,19 @@ void SIPpSocket::pollset_process(int wait)
             else
 #endif
             {
-				/* We can flush this socket. */
-				TRACE_MSG("Exit problem event on socket %d \n", sock->ss_fd);
-#ifdef YEASTAR_TLS_SHARING
-				/* 对于 TLS，如果 SSL 握手未完成，尝试继续它 */
-				if (sock->ss_transport == T_TLS) {
-#if defined(USE_OPENSSL) || defined(USE_WOLFSSL)
-					if (sock->ss_ssl && !SSL_is_init_finished(sock->ss_ssl)) {
-						/* SSL 握手未完成，尝试继续它 */
-						int rc = SSL_connect(sock->ss_ssl);
-						if (rc < 0) {
-							int err = SSL_get_error(sock->ss_ssl, rc);
-							if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-								/* 仍需要等待 socket 就绪 */
-								/* 保持 EPOLLOUT/POLLOUT 设置并保持拥塞状态 */
-								TRACE_MSG("SSL handshake still in progress on socket %d, waiting for more I/O\n", sock->ss_fd);
-								/* 暂时不清除拥塞状态或 EPOLLOUT，但仍刷新 */
-							} else {
-								/* 发生 SSL 错误 */
-								WARNING("SSL_connect failed in socket_thread: %s (socket fd=%d)", 
-										SSL_error_string(err, rc), sock->ss_fd);
-								sock->invalidate();
-							}
-						} else if (rc == 1) {
-							/* SSL 握手成功完成 */
-							TRACE_MSG("SSL handshake completed successfully on socket %d\n", sock->ss_fd);
-							sock->ss_congested = false;
-						}
-					} else {
-						/* SSL 握手已完成或没有 SSL 上下文 */
-						sock->ss_congested = false;
-					}
-#else
-					sock->ss_congested = false;
-#endif
-				} else {
-					/* 不是 TLS，仅清除拥塞状态 */
-					sock->ss_congested = false;
-				}
-#else
-				sock->ss_congested = false;
-#endif
-
-				/* Only clear EPOLLOUT if socket is not congested */
-				if (!sock->ss_congested) {
+                /* We can flush this socket. */
+                TRACE_MSG("Exit problem event on socket %d \n", sock->ss_fd);
 #ifdef HAVE_EPOLL
-					epollfiles[poll_idx].events &= ~EPOLLOUT;
-					int rc = epoll_ctl(epollfd, EPOLL_CTL_MOD, sock->ss_fd, &epollfiles[poll_idx]);
-					if (rc == -1) {
-						ERROR_NO("Failed to clear EPOLLOUT");
-					}
+                epollfiles[poll_idx].events &= ~EPOLLOUT;
+                int rc = epoll_ctl(epollfd, EPOLL_CTL_MOD, sock->ss_fd, &epollfiles[poll_idx]);
+                if (rc == -1) {
+                    ERROR_NO("Failed to clear EPOLLOUT");
+                }
 #else
-					pollfiles[poll_idx].events &= ~POLLOUT;
-					events++;
+                pollfiles[poll_idx].events &= ~POLLOUT;
+                events++;
 #endif
-				}
+                sock->ss_congested = false;
 
                 sock->flush();
             }
@@ -3149,36 +2928,6 @@ void SIPpSocket::pollset_process(int wait)
         if (epollevents[event_idx].events & EPOLLIN) {
 #else
         if (pollfiles[poll_idx].revents & POLLIN) {
-#endif
-#ifdef YEASTAR_TLS_SHARING
-			/* 对于 TLS，检查当 socket 变为可读时是否需要继续 SSL 握手 */
-			if (sock->ss_transport == T_TLS) {
-#if defined(USE_OPENSSL) || defined(USE_WOLFSSL)
-				if (sock->ss_ssl && !SSL_is_init_finished(sock->ss_ssl)) {
-					/* SSL 握手未完成，尝试继续它 */
-					int rc = SSL_connect(sock->ss_ssl);
-					if (rc < 0) {
-						int err = SSL_get_error(sock->ss_ssl, rc);
-						if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-							/* 仍需要等待 socket 就绪 */
-							TRACE_MSG("SSL handshake still in progress on socket %d (readable), waiting for more I/O\n", sock->ss_fd);
-							/* 如果有消息则继续处理，但握手将在稍后继续 */
-						} else {
-							/* 发生 SSL 错误 */
-							WARNING("SSL_connect failed in socket_thread (EPOLLIN): %s (socket fd=%d)", 
-									SSL_error_string(err, rc), sock->ss_fd);
-							sock->invalidate();
-						}
-					} else if (rc == 1) {
-						/* SSL 握手成功完成 */
-						TRACE_MSG("SSL handshake completed successfully on socket %d (via EPOLLIN)\n", sock->ss_fd);
-						if (sock->ss_congested) {
-							sock->ss_congested = false;
-						}
-					}
-				}
-#endif
-			}
 #endif
             /* We can empty this socket. */
             if ((transport == T_TCP || transport == T_TLS || transport == T_SCTP) && sock == main_socket) {

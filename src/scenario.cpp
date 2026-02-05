@@ -139,9 +139,6 @@ message::~message()
 scenario      *rx_scenario;
 scenario      *main_scenario;
 scenario      *ooc_scenario;
-#ifdef YEASTAR_TLS_SHARING
-scenario      *register_scenario;
-#endif
 scenario      *aa_scenario;
 scenario      *display_scenario;
 

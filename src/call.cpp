@@ -892,9 +892,6 @@ void call::init(scenario * call_scenario, SIPpSocket *socket, struct sockaddr_st
 
     call_port = 0;
     comp_state = nullptr;
-#ifdef YEASTAR_TLS_SHARING
-    tls_socket_cache = nullptr;
-#endif
 
     start_time = clock_tick;
     call_established=false ;
@@ -1164,37 +1161,6 @@ call::~call()
     if (call_remote_socket && (call_remote_socket != main_remote_socket)) {
         call_remote_socket->close();
     }
-#ifdef YEASTAR_TLS_SHARING
-	/* 如果缓存的 TLS socket 存在且不再需要，则清理它 */
-	if (tls_socket_cache) {
-		/* 如果此 socket 在特定分机号的注册映射中，不要关闭它 */
-		/* 同一分机号的其他主场景呼叫可能仍在使用它 */
-		bool in_register_map = false;
-		char extension[MAX_HEADER_LEN] = "";
-		getExtension(extension, sizeof(extension));
-		if (extension[0] != '\0') {
-			std::string extension_key(extension);
-			std::map<std::string, SIPpSocket*>::iterator it = register_tls_socket_map.find(extension_key);
-			if (it != register_tls_socket_map.end() && it->second == tls_socket_cache) {
-				in_register_map = true;
-			}
-		}
-		
-		if (in_register_map) {
-			/* 仅减少本地缓存引用，但保留映射缓存 */
-			tls_socket_cache->ss_count--;
-			tls_socket_cache = nullptr;
-		} else {
-			/* 减少缓存引用计数 */
-			tls_socket_cache->ss_count--;
-			/* 只有在是最后一个用户时才关闭 */
-			if (tls_socket_cache->ss_count <= 0) {
-				tls_socket_cache->close();
-			}
-			tls_socket_cache = nullptr;
-		}
-	}
-#endif
 
     /* Deletion of the call variable */
     if(M_callVariableTable) {
@@ -1387,43 +1353,6 @@ bool call::connect_socket_if_needed()
         }
     } else { /* TCP, SCTP or TLS. */
         struct sockaddr_storage *L_dest = &remote_sockaddr;
-#ifdef YEASTAR_TLS_SHARING
-		/* 对于 TLS，尝试重用之前使用的缓存 socket（例如，注册） */
-		/* 首先检查特定分机号的 TLS socket 缓存（来自该分机号的注册场景） */
-		if (transport == T_TLS) {
-			char extension[MAX_HEADER_LEN] = "";
-			getExtension(extension, sizeof(extension));
-			if (extension[0] != '\0') {
-				std::string extension_key(extension);
-				std::map<std::string, SIPpSocket*>::iterator it = register_tls_socket_map.find(extension_key);
-				if (it != register_tls_socket_map.end() && it->second != nullptr && it->second->ss_fd != -1) {
-					/* 重用该分机号注册场景的缓存 socket */
-					WARNING("Reusing cached TLS socket from register for extension=%s (socket fd=%d, ref_count=%d)", 
-							extension_key.c_str(), it->second->ss_fd, it->second->ss_count);
-					associate_socket(it->second);
-					it->second->ss_count++;  /* 为此呼叫的使用增加引用计数 */
-					call_socket = it->second;
-					/* 同时缓存在此呼叫的本地缓存中，以便在此呼叫内重用 */
-					tls_socket_cache = it->second;
-					tls_socket_cache->ss_count++;  /* 为本地缓存增加引用计数 */
-					existing = true;
-					return true;
-				}
-			}
-		}
-		
-		/* 然后检查本地 TLS socket 缓存（来自此呼叫内的先前使用） */
-		if (transport == T_TLS && tls_socket_cache != nullptr && tls_socket_cache->ss_fd != -1) {
-			/* 重用缓存的 socket - 将其关联到此呼叫 */
-			WARNING("Reusing local TLS socket cache within call (socket fd=%d, ref_count=%d)", 
-					tls_socket_cache->ss_fd, tls_socket_cache->ss_count);
-			associate_socket(tls_socket_cache);
-			tls_socket_cache->ss_count++;  /* 为此呼叫的使用增加引用计数 */
-			call_socket = tls_socket_cache;
-			existing = true;
-			return true;
-		}
-#endif
 
         if ((associate_socket(SIPpSocket::new_sipp_call_socket(use_ipv6, transport, &existing))) == nullptr) {
             ERROR_NO("Unable to get a TCP/SCTP/TLS socket");
@@ -1471,40 +1400,6 @@ bool call::connect_socket_if_needed()
             }
         }
         call_port = call_socket->ss_port;
-#ifdef YEASTAR_TLS_SHARING
-		/* 缓存 TLS socket 以便在注册和邀请之间重用 */
-		if (transport == T_TLS && tls_socket_cache != call_socket) {
-			/* 如果尚未缓存此 socket，则缓存它 */
-			if (tls_socket_cache) {
-				/* 减少旧缓存的引用计数 */
-				tls_socket_cache->ss_count--;
-			}
-			tls_socket_cache = call_socket;
-			call_socket->ss_count++;  /* 增加引用计数以保持 socket 存活用于缓存 */
-			
-			/* 如果这是注册场景呼叫，将 TLS socket 保存到用户特定映射中，供主场景呼叫重用 */
-			if (call_scenario == register_scenario) {
-				char extension[MAX_HEADER_LEN] = "";
-				getExtension(extension, sizeof(extension));
-				if (extension[0] != '\0') {
-					std::string extension_key(extension);
-					std::map<std::string, SIPpSocket*>::iterator it = register_tls_socket_map.find(extension_key);
-					if (it != register_tls_socket_map.end() && it->second != call_socket) {
-						/* 如果存在旧 socket 引用，则减少其引用计数 */
-						if (it->second) {
-							it->second->ss_count--;
-							WARNING("Replacing old TLS socket for extension=%s (old fd=%d, new fd=%d)", 
-									extension_key.c_str(), it->second->ss_fd, call_socket->ss_fd);
-						}
-					}
-					register_tls_socket_map[extension_key] = call_socket;
-					call_socket->ss_count++;  /* 为映射缓存增加引用计数 */
-					/* 从进行中集合中移除，因为 socket 现在已缓存 */
-					register_in_progress_set.erase(extension_key);
-				}
-			}
-		}
-#endif
     }
     return true;
 }
@@ -1887,34 +1782,11 @@ void call::terminate(CStat::E_Action reason)
     } else {
         if (reason == CStat::E_CALL_SUCCESSFULLY_ENDED || timewait) {
             computeStat(CStat::E_CALL_SUCCESSFULLY_ENDED);
-#ifdef YEASTAR_TLS_SHARING
-			/* 如果这是注册场景呼叫，从进行中集合中移除 */
-			if (call_scenario == register_scenario) {
-				char extension[MAX_HEADER_LEN] = "";
-				getExtension(extension, sizeof(extension));
-				if (extension[0] != '\0') {
-					std::string extension_key(extension);
-					register_in_progress_set.erase(extension_key);
-				}
-			}
-#endif
             if (deadcall_wait && !initCall) {
                 new deadcall(id, "successful");
             }
         } else {
             computeStat(CStat::E_CALL_FAILED);
-#ifdef YEASTAR_TLS_SHARING
-			/* 如果这是失败的注册场景呼叫，从进行中集合中移除 */
-			/* 这允许在需要时重试 */
-			if (call_scenario == register_scenario) {
-				char extension[MAX_HEADER_LEN] = "";
-				getExtension(extension, sizeof(extension));
-				if (extension[0] != '\0') {
-					std::string extension_key(extension);
-					register_in_progress_set.erase(extension_key);
-				}
-			}
-#endif
             if (reason != CStat::E_NO_ACTION) {
                 computeStat(reason);
             }
@@ -5876,22 +5748,8 @@ call::T_ActionResult call::executeAction(const char* msg, message* curmsg)
             free(value);
         } else if (currentAction->getActionType() == CAction::E_AT_CLOSE_CON) {
             if (call_socket) {
-#ifdef YEASTAR_TLS_SHARING
-				/* 对于 TLS，不要真正关闭 socket - 缓存它以供邀请重用 */
-				if (transport == T_TLS) {
-					/* 缓存 socket 以供重用 - 增加引用计数以保持其存活 */
-					tls_socket_cache = call_socket;
-					call_socket->ss_count++;  /* 保持 socket 存活用于缓存 */
-					/* 从当前呼叫中分离，但保持 socket 缓存 */
-					dissociate_socket();
-				} else {
-					call_socket->close();
-					call_socket = nullptr;
-				}
-#else
                 call_socket->close();
                 call_socket = nullptr;
-#endif
             }
         } else if (currentAction->getActionType() == CAction::E_AT_SET_DEST) {
             /* Change the destination for this call. */
@@ -6736,80 +6594,6 @@ void call::getFieldFromInputFile(const char *fileName, int field, SendingMessage
     }
     dest += inFiles[fileName]->getField(line, field, dest, SIPP_MAX_MSG_SIZE);
 }
-#ifdef YEASTAR_TLS_SHARING
-void call::reinitLineNumbers(int lookup_id)
-{
-	if (m_lineNumber == nullptr) {
-		ERROR("Cannot reinitialize line numbers for automatic calls!");
-	}
-	/* 重新初始化 m_lineNumber 以使用指定的 lookup_id 进行输入文件读取 */
-	/* 对于 USER 模式：lookup_id 直接映射到行号（lookup_id - 1） */
-	/* 对于 SEQUENTIAL 模式：我们计算行号为 (lookup_id - 1) % numLines 以匹配模式 */
-	/* 对于 RANDOM 模式：我们使用 lookup_id - 1 作为确定性行号 */
-	if (m_lineNumber) {
-		delete m_lineNumber;
-	}
-	m_lineNumber = new file_line_map();
-	for (file_map::iterator file_it = inFiles.begin();
-			file_it != inFiles.end();
-			file_it++) {
-		FileContents *fileContents = file_it->second;
-		int lineNum = -1;
-		
-		/* 对于所有模式，我们使用 lookup_id - 1 作为行号，使用模运算包装 */
-		/* 这确保注册呼叫使用与主呼叫相同的输入文件行 */
-		if (lookup_id > 0) {
-			int numLines = fileContents->numLines();
-			lineNum = (lookup_id - 1) % numLines;
-		} else {
-			/* lookup_id 为 0 或负数，使用 0 作为后备 */
-			lineNum = 0;
-		}
-		
-		(*m_lineNumber)[file_it->first] = lineNum;
-	}
-}
-
-void call::copyLineNumbers(call *source_call)
-{
-	if (m_lineNumber == nullptr) {
-		ERROR("Cannot copy line numbers for automatic calls!");
-	}
-	if (source_call == nullptr || source_call->m_lineNumber == nullptr) {
-		ERROR("Cannot copy line numbers from null or automatic call!");
-	}
-	/* 从源呼叫复制输入文件行号 */
-	/* 这确保注册呼叫使用与主呼叫完全相同的输入文件数据 */
-	if (m_lineNumber) {
-		delete m_lineNumber;
-	}
-	m_lineNumber = new file_line_map();
-	*m_lineNumber = *(source_call->m_lineNumber);
-}
-
-void call::getInputFileField(call *call_ptr, int field, char *dest, int len)
-{
-	if (call_ptr == nullptr || call_ptr->m_lineNumber == nullptr) {
-		dest[0] = '\0';
-		return;
-	}
-	if (default_file == nullptr || inFiles.find(default_file) == inFiles.end()) {
-		dest[0] = '\0';
-		return;
-	}
-	int line = (*call_ptr->m_lineNumber)[default_file];
-	if (line < 0) {
-		dest[0] = '\0';
-		return;
-	}
-	inFiles[default_file]->getField(line, field, dest, len);
-}
-
-void call::getExtension(char *dest, int len)
-{
-	getInputFileField(this, 0, dest, len);
-}
-#endif
 
 call::T_AutoMode call::checkAutomaticResponseMode(char* P_recv)
 {
